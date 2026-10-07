@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instagram Downloader</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+<style>
+  .thumb { width: 100%; aspect-ratio: 1/1; object-fit: cover; background: #222; }
+  .badge-type { position: absolute; top: 8px; left: 8px; }
+</style>
+</head>
+<body class="bg-light">
+<div class="container py-5" style="max-width: 900px">
+  <h3 class="mb-4"><i class="fab fa-instagram text-danger"></i> Instagram Downloader</h3>
+
+  <form id="f" class="input-group input-group-lg mb-3">
+    <input id="url" type="url" class="form-control" placeholder="Paste post, reel, profile or story link" required autofocus>
+    <button class="btn btn-primary" id="go"><i class="fas fa-search"></i> Fetch</button>
+  </form>
+
+  <div id="msg"></div>
+  <div id="loading" class="text-center my-5 d-none">
+    <div class="spinner-border text-primary"></div>
+    <div class="text-muted mt-2">Fetching via Apify, this can take 20-60 seconds...</div>
+  </div>
+  <div id="results" class="row g-3"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+$('#f').on('submit', function (e) {
+  e.preventDefault();
+  $('#msg').empty(); $('#results').empty(); $('#loading').removeClass('d-none'); $('#go').prop('disabled', true);
+
+  $.post('api.php', { url: $('#url').val() }, null, 'json')
+    .done(function (r) {
+      if (r.error) return $('#msg').html('<div class="alert alert-danger">' + $('<s>').text(r.error).html() + '</div>');
+      r.posts.forEach(function (p) {
+        p.media.forEach(function (m, i) {
+          var ext = m.type === 'video' ? 'mp4' : 'jpg';
+          var name = (p.owner || 'insta') + '_' + p.id + (p.media.length > 1 ? '_' + (i + 1) : '') + '.' + ext;
+          var dl = 'api.php?action=download&name=' + encodeURIComponent(name) + '&u=' + encodeURIComponent(m.url);
+          var th = 'api.php?action=download&inline=1&name=t.jpg&u=' + encodeURIComponent(m.thumb);
+          var $c = $('<div class="col-6 col-md-4"><div class="card h-100 shadow-sm position-relative">' +
+            '<span class="badge bg-dark badge-type"></span>' +
+            '<img class="thumb card-img-top" loading="lazy">' +
+            '<div class="card-body p-2"><div class="small text-muted text-truncate"></div>' +
+            '<a class="btn btn-success btn-sm w-100 mt-2"><i class="fas fa-download"></i> Download</a></div></div></div>');
+          $c.find('.badge-type').html('<i class="fas fa-' + (m.type === 'video' ? 'video' : 'image') + '"></i> ' + m.type);
+          $c.find('img').attr('src', th);
+          $c.find('.small').text((p.owner ? '@' + p.owner + ' - ' : '') + (p.caption || ''));
+          $c.find('a').attr('href', dl);
+          $('#results').append($c);
+        });
+      });
+    })
+    .fail(function (x) { $('#msg').html('<div class="alert alert-danger">Request failed: ' + x.status + '</div>'); })
+    .always(function () { $('#loading').addClass('d-none'); $('#go').prop('disabled', false); });
+});
+</script>
+</body>
+</html>
